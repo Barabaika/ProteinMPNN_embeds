@@ -1076,6 +1076,9 @@ class ProteinMPNN(nn.Module):
         h_EX_encoder = cat_neighbors_nodes(torch.zeros_like(h_S), h_E, E_idx)
         h_EXV_encoder = cat_neighbors_nodes(h_V, h_EX_encoder, E_idx)
 
+        last_enc_h_V = h_V.clone().detach().cpu().numpy()
+        last_enc_h_E = h_E.clone().detach().cpu().numpy()
+
 
         chain_M = chain_M*mask #update chain_M to include missing regions
         if not use_input_decoding_order:
@@ -1097,7 +1100,9 @@ class ProteinMPNN(nn.Module):
 
         logits = self.W_out(h_V)
         log_probs = F.log_softmax(logits, dim=-1)
-        return log_probs
+
+        h_EXV_encoder = h_EXV_encoder.cpu().numpy()
+        return log_probs, h_EXV_encoder, last_enc_h_V, last_enc_h_E
 
 
 

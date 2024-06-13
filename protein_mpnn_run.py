@@ -17,6 +17,7 @@ def main(args):
     import random
     import os.path
     import subprocess
+    from tqdm import tqdm
     
     from protein_mpnn_utils import loss_nll, loss_smoothed, gather_edges, gather_nodes, gather_nodes_t, cat_neighbors_nodes, _scores, _S_to_seq, tied_featurize, parse_PDB, parse_fasta
     from protein_mpnn_utils import StructureDataset, StructureDatasetPDB, ProteinMPNN
@@ -223,10 +224,12 @@ def main(args):
     total_residues = 0
     protein_list = []
     total_step = 0
+    all_hV = []
+    
     # Validation epoch
     with torch.no_grad():
         test_sum, test_weights = 0., 0.
-        for ix, protein in enumerate(dataset_valid):
+        for ix, protein in tqdm(enumerate(dataset_valid)):
             score_list = []
             global_score_list = []
             all_probs_list = []
@@ -236,7 +239,42 @@ def main(args):
             X, S, mask, lengths, chain_M, chain_encoding_all, chain_list_list, visible_list_list, masked_list_list, masked_chain_length_list_list, chain_M_pos, omit_AA_mask, residue_idx, dihedral_mask, tied_pos_list_of_lists_list, pssm_coef, pssm_bias, pssm_log_odds_all, bias_by_res_all, tied_beta = tied_featurize(batch_clones, device, chain_id_dict, fixed_positions_dict, omit_AA_dict, tied_positions_dict, pssm_dict, bias_by_res_dict, ca_only=args.ca_only)
             pssm_log_odds_mask = (pssm_log_odds_all > args.pssm_threshold).float() #1.0 for true, 0.0 for false
             name_ = batch_clones[0]['name']
-            if args.score_only:
+            if args.get_encoder_embeds:
+                # print('X', X.shape)
+                # print('getting encoder outputs')
+                randn_1 = torch.randn(chain_M.shape, device=X.device)
+                _, h_EXV_encoder, last_enc_h_V, last_enc_h_E = model(X, S, mask, chain_M*chain_M_pos, residue_idx, chain_encoding_all, randn_1)
+
+                last_enc_h_V = np.unique(last_enc_h_V, axis=0)
+                last_enc_h_V = np.mean(last_enc_h_V, axis = 1)
+                
+                all_hV.append(last_enc_h_V)
+
+                if ix == dataset_valid.__len__()-1:
+
+                    if args.pdb_path:
+                        pdb_file = os.path.basename(args.pdb_path)
+                        pdb_name = pdb_file.split('.')[0]
+                    else:
+                        pdb_name = 'all_samples'
+
+                    all_hV_concated = np.concatenate(all_hV)
+                    print(f'Saving at {ix} step, shape- {all_hV_concated.shape}')
+                    
+                    # h_EXV_path = args.out_folder + f'/{pdb_name}_h_EXV_encoder.npy'
+                    h_V_path = args.out_folder + f'/{pdb_name}_h_V.npy'
+                    # h_E_path = args.out_folder + f'/{pdb_name}_h_E.npy'
+
+                    np.save(h_V_path, all_hV_concated)
+
+                    # np.save(h_EXV_path, h_EXV_encoder)
+                    # np.save(h_V_path, last_enc_h_V)
+                    # np.save(h_E_path, last_enc_h_E)
+                    
+                    
+
+
+            elif args.score_only:
                 loop_c = 0 
                 if args.path_to_fasta:
                     fasta_names, fasta_seqs = parse_fasta(args.path_to_fasta, omit=["/"])
@@ -254,7 +292,7 @@ def main(args):
                         S[:,:input_seq_length] = S_input #assumes that S and S_input are alphabetically sorted for masked_chains
                     for j in range(NUM_BATCHES):
                         randn_1 = torch.randn(chain_M.shape, device=X.device)
-                        log_probs = model(X, S, mask, chain_M*chain_M_pos, residue_idx, chain_encoding_all, randn_1)
+                        log_probs, _, _, _ = model(X, S, mask, chain_M*chain_M_pos, residue_idx, chain_encoding_all, randn_1)
                         mask_for_loss = mask*chain_M*chain_M_pos
                         scores = _scores(S, log_probs, mask_for_loss)
                         native_score = scores.cpu().data.numpy()
@@ -414,6 +452,8 @@ def main(args):
                 total_length = X.shape[1]
                 if print_all:
                     print(f'{num_seqs} sequences of length {total_length} generated in {dt} seconds')
+
+            
    
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -431,6 +471,8 @@ if __name__ == "__main__":
  
     argparser.add_argument("--save_score", type=int, default=0, help="0 for False, 1 for True; save score=-log_prob to npy files")
     argparser.add_argument("--save_probs", type=int, default=0, help="0 for False, 1 for True; save MPNN predicted probabilites per position")
+
+    argparser.add_argument("--get_encoder_embeds", type=int, default=0, help="0 for False, 1 for True; save encoder embedings")
 
     argparser.add_argument("--score_only", type=int, default=0, help="0 for False, 1 for True; score input backbone-sequence pairs")
     argparser.add_argument("--path_to_fasta", type=str, default="", help="score provided input sequence in a fasta format; e.g. GGGGGG/PPPPS/WWW for chains A, B, C sorted alphabetically and separated by /")
