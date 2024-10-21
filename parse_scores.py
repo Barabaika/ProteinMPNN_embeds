@@ -15,12 +15,6 @@ if __name__ == "__main__":
     parser.add_argument("output_csv")
     parser.add_argument("exp_name")
     args = parser.parse_args()
-    
-    if os.path.exists(args.output_csv):
-        res_df = pd.read_csv(args.output_csv)
-    else:
-        res_df = pd.DataFrame({"file": []})
-    res_df = res_df.set_index('file')
 
     scores=[]
     for s_file in os.listdir(os.path.join(args.exp_path, 'seqs')):
@@ -29,9 +23,9 @@ if __name__ == "__main__":
         result = re.search(r"score=([^,]*),", first_line)
         scores.append(float(result.group(1)))
           
-    print('exp:', exp, round(np.mean(scores), 3), '+-', round(np.std(scores), 3))
+    print('exp:', args.exp_name, round(np.mean(scores), 3), '+-', round(np.std(scores), 3))
 
-    res_df = res_df.reset_index()
+    res_df = pd.DataFrame({'scperp': scores})
 
     res_df.to_csv(args.output_csv, index = False)
 

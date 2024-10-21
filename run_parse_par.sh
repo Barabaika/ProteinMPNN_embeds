@@ -1,23 +1,24 @@
 #!/bin/bash
 
+exp_name=$1
+pdbs_folder=$2
+n_procs=$3
 
-files_folder="/mnt/10tb/home/shevtsov/ProteinMPNN_embeds/swiss_v2/found.txt"
+find ${pdbs_folder}/* > ${exp_name}_pdbs.txt
 
-exp="swiss_v2"
-# mkdir -p ${exp}_tmp
+mkdir -p ${exp_name}_tmp
 
-# parallel \
-#     -j 15 \
-#     ./run_parse.sh {} ${exp}_tmp :::: $files_folder
+parallel \
+    -j $n_procs \
+    ./run_parse.sh {} ${exp_name}_tmp :::: ${exp_name}_pdbs.txt
+wait
 
-
-# cat ./${exp}_tmp/* > ${exp}.jsonl
-# # rm  -r ./${exp}_tmp
-# wait
-# echo "Done_${exp}"
-
-touch ${exp}.jsonl
+touch ${exp_name}.jsonl
 while read pdb_path; do
     pdb_id=$(basename ${pdb_path%.*})
-    cat ./${exp}_tmp/${pdb_id}.jsonl >> ${exp}.jsonl
-done < $files_folder
+    cat ./${exp_name}_tmp/${pdb_id}.jsonl >> ${exp_name}.jsonl
+done < ${exp_name}_pdbs.txt
+# cat ./${exp_name}_tmp/* > ${exp_name}.jsonl
+
+rm  -r ./${exp_name}_tmp ${exp_name}_pdbs.txt
+echo "parsed ${exp_name}"

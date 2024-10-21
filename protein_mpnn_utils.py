@@ -39,6 +39,7 @@ def parse_fasta(filename,limit=-1, omit=[]):
 def _scores(S, log_probs, mask):
     """ Negative log probabilities """
     criterion = torch.nn.NLLLoss(reduction='none')
+    # print('log_probs', log_probs)
     loss = criterion(
         log_probs.contiguous().view(-1,log_probs.size(-1)),
         S.contiguous().view(-1)
