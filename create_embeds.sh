@@ -1,18 +1,19 @@
 #!/bin/bash
 
-method_name="test_pdbs"
+method_name="swiss_v2"
 echo $method_name
 
-folder_with_pdbs="../../data/${method_name}/"
+# folder_with_pdbs="../../data/${method_name}/"
 
-output_dir="../../data/proteinMPNN_embeds/${method_name}"
+output_dir="./embeds/${method_name}"
 
-# path_for_parsed_chains="${output_dir}/parsed_pdbs.jsonl"
-if [ ! -d $path_for_parsed_chains ]
-then
-    echo Start parsing pdbs
-    python ./helper_scripts/parse_multiple_chains.py --input_path=$folder_with_pdbs --output_path=$path_for_parsed_chains
-fi
+mkdir -p $output_dir
+path_for_parsed_chains="${method_name}.jsonl"
+# if [ ! -d $path_for_parsed_chains ]
+# then
+#     echo Start parsing pdbs
+#     python ./helper_scripts/parse_multiple_chains.py --input_path=$folder_with_pdbs --output_path=$path_for_parsed_chains
+# fi
 
 
 echo Start proteinMPNN
